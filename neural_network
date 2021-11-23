@@ -1,0 +1,171 @@
+Приложение А 
+def Main(): 
+# считывание тренировочных данных 
+traintime, trainQ, trainttopoil, n1 = ExcelInformation.ReadInformationWithSheet("30","Dataset.xlsx") 
+# тестовые данные 
+testtime, testQ, testttopoil, n = ExcelInformation.ReadInformationWithSheet("30","Dataset.xlsx") 
+#нейронная сеть 
+#массивы numpy 
+x_train = np.array([trainttopoil, traintime], dtype='float').transpose() 
+y_train = np.array(trainQ, dtype='float').transpose() 
+x_test = np.array([testttopoil, testtime], dtype='float').transpose() 
+y_test = np.array(testQ, dtype='float').transpose() 
+#подготовка входных данных для обучения 
+poly = PolynomialFeatures(degree=7) 
+X_1 = poly.fit_transform(x_train) 
+#линейная регрессионная модель (сеть) 
+clf = linear_model.LinearRegression(normalize=True) 
+#обучение 
+history = clf.fit(X_1, y_train) 
+#тестирование на тренировочных данных 
+metric1 = clf.score(X_1, y_train) 
+print(metric1) 
+#проверка предсказания сети на обучающей выборке 
+predictions_train = clf.predict(X_1) # по обучающей выборке 
+predictions_train = predictions_train.reshape(1, len(predictions_train)) 
+predictions_train = list(predictions_train[0]) 
+#проверка сети на тестовых данных 
+x_testnet = poly.fit_transform(x_test) 
+predictions_test = clf.predict(x_testnet) 
+predictions_test = predictions_test.reshape(1, len(predictions_test)) 
+predictions_test = list(predictions_test[0]) 
+metric_test = clf.score(x_testnet, y_test) 
+print(metric_test) 
+# аналитическая регрессия 
+regress = MathInstruments.polynom_regr(10, n1, traintime, trainQ) 
+#regress = MathInstruments.polynom_regr2(2,n1, traintime, trainQ,trainttopoil) 
+#regress = MathInstruments.linalg(trainttopoil,traintime,trainQ) 
+#построение результатов 
+#Graphics.plot2d(trainttopoil, predictions_train, trainQ, regress, ['time', 'QH2','source','regress','net']) 
+Graphics.graph3d(traintime, trainttopoil, predictions_train, trainQ,regress,['time', 'ttopOil', 'Q','source','regress','net']) 
+Приложение Б 
+def plot2d(timeorttopoil,net,source,regress,labels): # простой график двумерный 
+fig, ax = plt.subplots() 
+net = MathInstruments.FilterGauss(net, 20) 
+regress = MathInstruments.FilterGauss(regress, 20) 
+timeorttopoil = MathInstruments.FilterGauss(timeorttopoil, 20) 
+#исходные данные 
+ax.plot(timeorttopoil[::20], source[::20],color='green', linewidth=2.0) 
+#аналитическая регрессия 
+ax.plot(timeorttopoil, regress, color='black', linewidth=2.0) 
+#нейросеть 
+ax.plot(timeorttopoil,net,color='red', linewidth=2.0) 
+# легенды и подписи 
+ax.legend(labels[2:5]) 
+ax.set_xlabel(labels[0]) 
+ax.set_ylabel(labels[1]) 
+ax.grid() 
+plt.gca() 
+plt.show() 
+def graph3d(time, ttopoil, net, source, regress, labels): 
+fig = plt.figure() 
+ax = Axes3D(fig) 
+net = MathInstruments.FilterGauss(net,20) 
+regress = MathInstruments.FilterGauss(regress,20) 
+ttopoil = MathInstruments.FilterGauss(ttopoil, 20) 
+# исходные данные 
+ax.plot3D(time[::20], ttopoil[::20], source[::20], c='green', linewidth=2.0) 
+# аналитическая регрессия 
+ax.plot3D(time, ttopoil, regress, color='black', linewidth=2.0) 
+# нейросеть 
+ax.plot3D(time, ttopoil, net, color='red', linewidth=2.0) 
+#легенды и подписи 
+ax.legend(labels[3:6]) 
+ax.set_xlabel(labels[0]) 
+ax.set_ylabel(labels[1]) 
+ax.set_zlabel(labels[2]) 
+ax.view_init(0, -90) 
+plt.show() 
+Приложение В 
+#Функция считывания dataset с заданного листа 
+def ReadInformationWithSheet(sheet,namefile): 
+#открытие книги 
+book = xlrd.open_workbook("G:\\Documents\\Neuroinformatics\\Transformer prediction\\"+namefile) 
+sheet = book.sheet_by_name(sheet) 
+#количество строк 
+countRows = sheet.nrows 
+#print(CountRows) 
+#начальная позиция 
+firstIndex = 2 
+#считывание столбцов 
+h2 = sheet.col_values(1, firstIndex, countRows) 
+tTopOil = sheet.col_values(2, firstIndex, countRows) 
+time = sheet.col_values(0, firstIndex, countRows) 
+#перевод температуры из градусов цельсия в кельвины 
+tTopOil = [i + 273 for i in tTopOil] 
+#Получение относительного времени 
+time = [i - time[0] + 1 for i in time] 
+#получение длины массивов данных 
+n = len(h2) 
+#проверка на пустые строки и их удаление (на всякий случай) 
+try: 
+for i in range(n): 
+if h2[i] == '' or time[i] == '' or tTopOil[i] == '': 
+h2.pop(i) 
+time.pop(i) 
+tTopOil.pop(i) 
+if i == len(h2) - 1: 
+break 
+#исключение с указаеним положения 
+except IndexError: 
+print(i, len(h2), len(time), len(tTopOil)) 
+return time, h2, tTopOil, n 
+Приложение Г 
+#фильтр Гаусса 
+def FilterGauss(data,relativesigma=1): 
+sigma = statistics.stdev(data) 
+sigma = sigma * relativesigma 
+return ndimage.gaussian_filter(data, sigma=sigma, order=0) 
+def coef1X(x1,n): 
+result = 0 
+for i in range(n): 
+result += x1[i] 
+return result 
+def coef2X(x1,x2,n): 
+result = 0 
+for i in range(n): 
+result += x1[i]*x2[i] 
+return result 
+#функция получения вектора x для А 
+def getMultiplierA(x,degree,count): 
+result = 0 
+for i in range(count): 
+result += x[i]**degree 
+return result 
+#функция получения матрицы A 
+def getA(degree,count,x): 
+A = [] 
+for i in range(degree+1): 
+A.append([]) 
+for j in range(degree+1): 
+A[i].append((1.0/count)*getMultiplierA(x,i+j,count)) 
+return A 
+#функция получения вектора x для С 
+def getMultiplierC(x,y,degree,count): 
+result = 0 
+for i in range(count): 
+result += (x[i]**degree)*y[i] 
+return result 
+#функция получения матрицы С 
+def getC(degree,count,x,y): 
+C = [] 
+for i in range(degree+1): 
+C.append((1.0/count)*getMultiplierC(x,y,i,count)) 
+return C 
+#функция получения матрицы B 
+def getB(degree,count,x,y): 
+A = getA(degree,count,x) 
+C = getC(degree,count,x,y) 
+A_inv = np.linalg.inv(A) 
+B = A_inv.dot(C) 
+return B 
+#полиномиальная регрессия 
+def polynom_regr(degree, count, x, y): 
+B = getB(degree,count,x,y) 
+regress = [] 
+for i in range(count): 
+perem = 0 
+for j in range(degree+1): 
+perem += B[j]*(x[i]**j) 
+regress.append(perem) 
+return regress
